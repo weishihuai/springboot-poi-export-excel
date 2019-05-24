@@ -3,7 +3,6 @@ package com.wsh.springboot.springbootpoiexportexcel.controller;
 import org.apache.poi.hpsf.DocumentSummaryInformation;
 import org.apache.poi.hpsf.SummaryInformation;
 import org.apache.poi.hssf.usermodel.*;
-import org.apache.poi.hssf.util.HSSFColor;
 import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.HorizontalAlignment;
 import org.apache.poi.ss.usermodel.IndexedColors;
@@ -25,15 +24,33 @@ import java.util.*;
  * @Description: 动态生成Excel模板控制层
  * @author: weishihuai
  * @Date: 2019/4/15 14:58
+ *
  * <p>
- * 关于前端调用方式:
- * 可直接使用:  window.open(window.baseUrl + "/exportDynamicExcelTemplate", "_blank") 动态生成Excel模板
+ * 说明:
+ * 创建Excel（.xls后缀）大致步骤：
+ * 1、创建HSSFWorkbook对象（也就是excel文档对象）;
+ * 2、通过HSSFWorkbook对象创建HSSFSheet对象（也就是excel中的sheet）;
+ * 3、通过HSSFSheet对象创建HSSFROW对象（Excel行）;
+ * 4、通过HSSFROW对象创建列HSSFCell(Excel列)并set值（列名）;
+ * 5、接着就是设置Excel的一些样式、批注、合并单元格等操作;
+ * <p>
+ * 创建Excel（.xlsx后缀）大致步骤：
+ * 1、创建XSSFWorkbook对象（也就是excel文档对象）;
+ * 2、通过XSSFWorkbook对象创建XSSFSheet对象（也就是excel中的sheet）;
+ * 3、通过XSSFSheet对象创建XSSFROW对象（Excel行）;
+ * 4、通过XSSFROW对象创建列XSSFCell(Excel列)并set值（列名）;
+ * 5、接着就是设置Excel的一些样式、批注、合并单元格等操作;
+ * <p>
+ * 特别需要注意点:
+ * 1. HSSFWorkbook/HSSFSheet...以H开头的一些列类:  .xls后缀名的Excel ,并且需要设置 response.setContentType("application/vnd.ms-excel;charset=gb2312");
+ * 2. XSSFWorkbook/XSSFSheet/XSSFRow ...以H开头的一些列类: .xlsx文件后缀名的Excel,并且需要设置 response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+ * 3. 关于前端调用方式: window.open(window.baseUrl + "/exportDynamicExcelTemplate", "_blank") 动态生成Excel模板;
  */
 @RestController
 public class ExportExcelController {
 
     @GetMapping("/exportDynamicExcelTemplate")
-    public void exportDynamicExcelTemplate(HttpServletResponse response, Map<String, Object> map1) {
+    public void exportDynamicExcelTemplate(HttpServletResponse response) {
         //创建一个工作簿(Excel的文档对象)
         HSSFWorkbook hssfWorkbook = new HSSFWorkbook();
 
@@ -45,27 +62,29 @@ public class ExportExcelController {
         //创建一个Sheet(Excel的表单)
         HSSFSheet hssfSheet = hssfWorkbook.createSheet("学生信息导入模板表");
         //创建Excel表头(rownum:0表示表头),从0开始
-        HSSFRow hssfRow = hssfSheet.createRow(0);
+        HSSFRow headerRow = hssfSheet.createRow(0);
+
 
         /**
          * 2. 设置行高、列宽、单元格样式、字体颜色、大小等
          */
-        //设置行的高度
-        hssfRow.setHeightInPoints(50);
+        // 设置缺省列高
+        hssfSheet.setDefaultRowHeightInPoints(25);
+        //设置第一行(表头)的高度
+        headerRow.setHeightInPoints(25);
         //设置列宽，设置第8列宽度是60个字符宽度
-        hssfSheet.setColumnWidth(8, 60 * 256);
+        hssfSheet.setColumnWidth(8, 40 * 256);
+        // 设置表格默认列宽度为15个字节
+        hssfSheet.setDefaultColumnWidth((short) 16);
         //格子单元样式
         HSSFCellStyle hssfCellStyle = hssfWorkbook.createCellStyle();
         HSSFFont hssfFont = hssfWorkbook.createFont();
-
         //设置字体加粗
         hssfFont.setBold(true);
         //设置字体名称
         hssfFont.setFontName("华文行楷");
         //设置字体大小
-        hssfFont.setFontHeightInPoints((short) 13);
-        //设置字体颜色
-        //hssfFont.setColor(HSSFColor.RED.index);
+        hssfFont.setFontHeightInPoints((short) 15);
         //设置下划线
         //hssfFont.setUnderline(FontFormatting.U_SINGLE);
         //设置删除线
@@ -75,26 +94,26 @@ public class ExportExcelController {
         hssfCellStyle.setAlignment(HorizontalAlignment.CENTER);
         //设置垂直居中
         hssfCellStyle.setVerticalAlignment(VerticalAlignment.CENTER);
-        // 设置表格默认列宽度为15个字节
-        hssfSheet.setDefaultColumnWidth((short) 16);
 
-        HSSFFont hssfFont2 = hssfWorkbook.createFont();
-        HSSFCellStyle hssfCellStyle2;
 
         /**
          * 3. Excel模板表头相关信息设置
          * 导出的Excel的标题列
+         * 实际工作可通过查询数据库，搞成动态表头Excel
          */
+        HSSFFont hFont = hssfWorkbook.createFont();
+        HSSFCellStyle hCellStyle;
         String[] titleHeaders = {"学号", "姓名", "性别", "学院", "专业", "班级", "入学日期", "学费", "学生类别", "住宿费"};
-        for (short i = 0; i < titleHeaders.length; i++) {
-            HSSFCell cell = hssfRow.createCell(i);
-            HSSFRichTextString text = new HSSFRichTextString(titleHeaders[i]);
+        for (int i = 0; i < titleHeaders.length; i++) {
+            String header = titleHeaders[i];
+            HSSFCell cell = headerRow.createCell(i);
+            HSSFRichTextString text = new HSSFRichTextString(header);
             cell.setCellValue(text);
             //设置学号/姓名列一些必填标识等
-            if ("学号".equals(titleHeaders[i]) || "姓名".equals(titleHeaders[i])) {
+            if ("学号".equals(header) || "姓名".equals(header)) {
                 //设置字体样式等
-                hssfCellStyle2 = this.createCellStyle(hssfFont2, hssfWorkbook);
-                cell.setCellStyle(hssfCellStyle2);
+                hCellStyle = this.createCellStyle(hFont, hssfWorkbook);
+                cell.setCellStyle(hCellStyle);
             } else {
                 cell.setCellStyle(hssfCellStyle);
             }
@@ -105,7 +124,7 @@ public class ExportExcelController {
         for (int i = 0; i < exampleDataList.size(); i++) {
             Map<String, Object> map = exampleDataList.get(i);
             if (null != map && !map.isEmpty()) {
-                //创建Excel一行(第一行)
+                //创建Excel一行(第二行)
                 HSSFRow row = hssfSheet.createRow(i + 1);
 
                 /**
@@ -120,7 +139,7 @@ public class ExportExcelController {
                 row.createCell(4).setCellValue(null != map.get("zy") ? map.get("zy").toString() : "");
                 HSSFCell bjCell = row.createCell(5);
                 bjCell.setCellValue(null != map.get("bj") ? map.get("bj").toString() : "");
-                if ("201324131212".equals(null != map.get("bj") ? map.get("bj").toString() : "")) {
+                if ("201324131212".equals(null != map.get("xh") ? map.get("xh").toString() : "")) {
                     /**
                      * 5. 给某个单元格创建批注信息
                      */
@@ -180,14 +199,16 @@ public class ExportExcelController {
         hssfSheet.addValidationData(hssfDataValidation);
 
         //导出的Excel模板文件名称
-        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        StringBuilder fileName = new StringBuilder(UUID.randomUUID().toString()).append(dateFormat.format(new Date())).append("学生信息导入模板表").append(".xls");
-        //清空response
-        response.reset();
-        //设置response的Header
-        response.addHeader("Content-Disposition", "attachment;filename=" + fileName);
+        DateFormat dateFormat = new SimpleDateFormat("yyyyMMdd");
+        // 需要指定文件名的编码方式为ISO-8859-1,否则会出现文件名中的中文字符丢失的问题   //比如: _________20190415.xls
+        String excelFileName = null;
         OutputStream os = null;
         try {
+            excelFileName = new String(("学生信息导入模板表" + dateFormat.format(new Date()) + ".xls").getBytes("gb2312"), "ISO-8859-1");
+            //清空response
+            response.reset();
+            //设置response的Header
+            response.addHeader("Content-Disposition", "attachment;filename=" + excelFileName);
             os = new BufferedOutputStream(response.getOutputStream());
             //设置消息头内容格式,并指定编码格式
             response.setContentType("application/vnd.ms-excel;charset=gb2312");
@@ -210,16 +231,20 @@ public class ExportExcelController {
     /**
      * 设置单元格样式
      *
-     * @param hssfFont2 字体
+     * @param hssfFont 字体
      * @return
      */
-    private HSSFCellStyle createCellStyle(HSSFFont hssfFont2, HSSFWorkbook hssfWorkbook) {
+    private HSSFCellStyle createCellStyle(HSSFFont hssfFont, HSSFWorkbook hssfWorkbook) {
         HSSFCellStyle hssfCellStyle2 = hssfWorkbook.createCellStyle();
         //粗体
-        hssfFont2.setBold(true);
+        hssfFont.setBold(true);
+        //设置字体名称
+        hssfFont.setFontName("华文行楷");
+        //设置字体大小
+        hssfFont.setFontHeightInPoints((short) 15);
         //字体颜色
-        hssfFont2.setColor(HSSFColor.RED.index);
-        hssfCellStyle2.setFont(hssfFont2);
+        hssfFont.setColor(IndexedColors.RED.getIndex());
+        hssfCellStyle2.setFont(hssfFont);
         //水平居中
         hssfCellStyle2.setAlignment(HorizontalAlignment.CENTER);
         //垂直居中
@@ -262,7 +287,7 @@ public class ExportExcelController {
         //批注
         HSSFComment hssfComment = hssfPatriarch.createCellComment(hssfClientAnchor);
         //设置批注内容
-        hssfComment.setString(new HSSFRichTextString("班级单元格！"));
+        hssfComment.setString(new HSSFRichTextString("这是一个班级单元格！"));
         //设置批注作者
         hssfComment.setAuthor("weixiaohuai");
         //设置批注默认显示
@@ -306,7 +331,7 @@ public class ExportExcelController {
         Map<String, Object> map = new HashMap<>();
         map.put("xh", "201324131147");
         map.put("xm", "张三");
-        map.put("xb", "male");
+        map.put("xb", "男");
         map.put("xy", "计算机学院");
         map.put("zy", "软件工程");
         map.put("bj", "15科技一班");
@@ -315,7 +340,7 @@ public class ExportExcelController {
         Map<String, Object> map2 = new HashMap<>();
         map2.put("xh", "201324131212");
         map2.put("xm", "李四");
-        map2.put("xb", "female");
+        map2.put("xb", "男");
         map2.put("xy", "数学学院");
         map2.put("zy", "高等数学");
         map2.put("bj", "16高数一班");
